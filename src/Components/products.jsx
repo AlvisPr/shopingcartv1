@@ -1,4 +1,5 @@
-import React from "react";
+
+import React from "react";  
 import axios from "axios";
 import {
   Card,
@@ -7,16 +8,20 @@ import {
   Container,
   Row,
   Col,
-  Image
+  Image,
+  Form,
 } from "react-bootstrap";
 
 
+
+// simulate getting products from DataBase
 const products = [
-  { name: "Apples_:", country: "Italy", cost: 3, instock: 10 },
-  { name: "Oranges:", country: "Spain", cost: 4, instock: 3 },
-  { name: "Beans__:", country: "USA", cost: 2, instock: 5 },
-  { name: "Cabbage:", country: "USA", cost: 1, instock: 8 },
+  { name: "Apples", country: "Italy", cost: 3, instock: 10 },
+  { name: "Oranges", country: "Spain", cost: 4, instock: 3 },
+  { name: "Beans", country: "USA", cost: 2, instock: 5 },
+  { name: "Cabbage", country: "USA", cost: 1, instock: 8 },
 ];
+
 //=========Cart=============
 const Cart = (props) => {
   const { Card, Accordion, Button } = ReactBootstrap;
@@ -35,19 +40,19 @@ const useDataApi = (initialUrl, initialData) => {
     isError: false,
     data: initialData,
   });
-  console.log(`useDataApi called`);
+
   useEffect(() => {
-    console.log("useEffect Called");
     let didCancel = false;
     const fetchData = async () => {
       dispatch({ type: "FETCH_INIT" });
       try {
         const result = await axios(url);
-        console.log("FETCH FROM URl");
+        console.log("Fetched data:", result.data);
         if (!didCancel) {
           dispatch({ type: "FETCH_SUCCESS", payload: result.data });
         }
       } catch (error) {
+        console.error("Fetch error:", error);
         if (!didCancel) {
           dispatch({ type: "FETCH_FAILURE" });
         }
@@ -60,6 +65,7 @@ const useDataApi = (initialUrl, initialData) => {
   }, [url]);
   return [state, setUrl];
 };
+
 const dataFetchReducer = (state, action) => {
   switch (action.type) {
     case "FETCH_INIT":
@@ -86,132 +92,262 @@ const dataFetchReducer = (state, action) => {
   }
 };
 
-const Products = (props) => {
-  const [items, setItems] = React.useState(products);
+const Products = () => {
+  const [items, setItems] = React.useState(
+    products.map(product => ({ ...product, stock: product.instock }))
+  );
   const [cart, setCart] = React.useState([]);
   const [total, setTotal] = React.useState(0);
-
-  //  Fetch Data
-  const { Fragment, useState, useEffect, useReducer } = React;
-  const [query, setQuery] = useState("http://localhost:1337/products");
+  const { useState } = React;
+  const [query, setQuery] = useState("http://localhost:1337/api/products");
   const [{ data, isLoading, isError }, doFetch] = useDataApi(
-    "http://localhost:1337/products",
+    "http://localhost:1337/api/products",
     {
       data: [],
     }
   );
-  console.log(`Rendering Products ${JSON.stringify(data)}`);
-  // Fetch Data
+
   const addToCart = (e) => {
     let name = e.target.name;
-    let item = items.filter((item) => item.name == name);
-    console.log(`add to Cart ${JSON.stringify(item)}`);
-    setCart([...cart, ...item]);
-    //doFetch(query);
+    let item = items.find((item) => item.name === name);
+    if (item && item.stock > 0) {
+      console.log("Adding to cart:", item);
+      setCart([...cart, item]);
+      setItems(items.map(i =>
+        i.name === name ? { ...i, stock: i.stock - 1 } : i
+      ));
+    }
   };
-  const deleteCartItem = (index) => {
-    let newCart = cart.filter((item, i) => index != i);
-    setCart(newCart);
-  };
-  const photos = ["apple.png", "orange.png", "beans.png", "cabbage.png"];
 
-  let list = items.map((item, index) => {
-    //let n = index + 1049;
-    //let url = "https://picsum.photos/id/" + n + "/50/50";
+  const deleteCartItem = (name) => {
+    console.log("Removing one unit from cart:", name);
+    let itemIndex = cart.findIndex(item => item.name === name);
+    if (itemIndex !== -1) {
+      let newCart = [...cart];
+      newCart.splice(itemIndex, 1);
+      setCart(newCart);
+
+      setItems(items.map(item =>
+        item.name === name
+          ? { ...item, stock: item.stock + 1 }
+          : item
+      ));
+    }
+  };  const list = items.map((item, index) => {
+    let imageUrl;
+    switch (item.name.toLowerCase()) {
+      case 'apples':
+        imageUrl = 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=300&q=80';
+        break;
+      case 'oranges':
+        imageUrl = 'https://img.freepik.com/free-photo/orange-fruit_1203-6822.jpg?t=st=1725353547~exp=1725357147~hmac=b6b88abfc1bba2eed7c3b32381bc8eddcb0e23f1b76f8cf16dcdd53b6ba6cebc&w=900';
+        break;
+      case 'beans':
+        imageUrl = 'https://img.freepik.com/free-photo/mountain-almonds_1203-908.jpg?t=st=1725353880~exp=1725357480~hmac=a25ed01bc01d0714b058d3b85ad3a4b5f3fcc31f17fed061d0d4f02f0916a3d3&w=1380';
+        break;
+      case 'cabbage':
+        imageUrl = 'https://img.freepik.com/free-photo/organic-background-green-vegetarian-nutrition_1203-5845.jpg?t=st=1725353782~exp=1725357382~hmac=db9b8e4fb9fef2a1e087c207d3faa37ddd945e38cf0709b50ceeb8aaa420e7be&w=1380';
+        break;
+      default:
+        imageUrl = `https://source.unsplash.com/300x300/?${item.name}`;
+    }
 
     return (
-      <li key={index}>
-        <Image src={photos[index % 4]} width={70} roundedCircle></Image>
-        <Button variant="primary" size="large">
-          {item.name}:{item.cost}
-        </Button>
-        <input name={item.name} type="submit" onClick={addToCart}></input>
-      </li>
+      <Col key={index} xs={6} sm={4} md={3} lg={3} className="mb-3">
+        <Card className="h-100 shadow-sm">
+          <Card.Img 
+            variant="top" 
+            src={imageUrl} 
+            style={{ height: '100px', objectFit: 'cover' }} 
+          />
+          <Card.Body className="p-3">
+            <Card.Title className="h6 mb-1" style={{ fontSize: '0.9rem' }}>{item.name}</Card.Title>
+            <Card.Text className="small text-muted mb-1" style={{ fontSize: '0.8rem' }}>
+              ${item.cost} | Stock: {item.stock}
+            </Card.Text>
+            <Button
+              variant="primary"
+              size="sm"
+              name={item.name}
+              onClick={addToCart}
+              disabled={item.stock === 0}
+              className="w-100"
+              style={{ fontSize: '0.8rem' }}
+            >
+              {item.stock === 0 ? 'Out' : 'Add'}
+            </Button>
+          </Card.Body>
+        </Card>
+      </Col>
     );
   });
-  let cartList = cart.map((item, index) => {
+  const cartList = cart.reduce((acc, item) => {
+    const existingItem = acc.find((i) => i.name === item.name);
+    if (existingItem) {
+      return acc.map((i) =>
+        i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i
+      );
+    } else {
+      return [...acc, { ...item, quantity: 1 }];
+    }
+  }, []).map((item, index) => {
+    let imageUrl;
+    switch (item.name.toLowerCase()) {
+      case 'apples':
+        imageUrl = 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=300&q=80';
+        break;
+      case 'oranges':
+        imageUrl = 'https://img.freepik.com/free-photo/orange-fruit_1203-6822.jpg?t=st=1725353547~exp=1725357147~hmac=b6b88abfc1bba2eed7c3b32381bc8eddcb0e23f1b76f8cf16dcdd53b6ba6cebc&w=900';
+        break;
+      case 'beans':
+        imageUrl = 'https://img.freepik.com/free-photo/mountain-almonds_1203-908.jpg?t=st=1725353880~exp=1725357480~hmac=a25ed01bc01d0714b058d3b85ad3a4b5f3fcc31f17fed061d0d4f02f0916a3d3&w=1380';
+        break;
+      case 'cabbage':
+        imageUrl = 'https://img.freepik.com/free-photo/organic-background-green-vegetarian-nutrition_1203-5845.jpg?t=st=1725353782~exp=1725357382~hmac=db9b8e4fb9fef2a1e087c207d3faa37ddd945e38cf0709b50ceeb8aaa420e7be&w=1380';
+        break;
+      default:
+        imageUrl = `https://source.unsplash.com/300x300/?${item.name}`;
+    }
+
     return (
-      <Card key={index}>
-        <Card.Header>
-          <Accordion.Toggle as={Button} variant="link" eventKey={1 + index}>
-            {item.name}
+      <Card key={index} className="mb-2">
+        <Card.Header className="d-flex align-items-center">
+          <Image 
+            src={imageUrl} 
+            roundedCircle 
+            style={{ width: '40px', height: '40px', objectFit: 'cover' }} 
+            className="mr-3"
+          />
+          <Button 
+            variant="outline-danger" 
+            size="sm" 
+            onClick={() => deleteCartItem(item.name)}
+            className="mr-3"
+          >
+            Remove
+          </Button>
+          <Accordion.Toggle as={Button} variant="link" eventKey={1 + index} className="text-decoration-none flex-grow-1">
+            <span className="font-weight-bold">{item.name}</span> - <span className="text-success">$
+              {item.cost} x {item.quantity}</span>
           </Accordion.Toggle>
         </Card.Header>
-        <Accordion.Collapse
-          onClick={() => deleteCartItem(index)}
-          eventKey={1 + index}
-        >
+        <Accordion.Collapse eventKey={1 + index}>
           <Card.Body>
-            $ {item.cost} from {item.country}
+            <p className="mb-2">Country: <span className="font-italic">{item.country}</span></p>
           </Card.Body>
         </Accordion.Collapse>
       </Card>
     );
-  });
-
-  let finalList = () => {
+  });  const finalList = () => {
     let total = checkOut();
-    let final = cart.map((item, index) => {
-      return (
-        <div key={index} index={index}>
-          {item.name}
-        </div>
-      );
-    });
-    return { final, total };
+    console.log("Final total:", total);
+    return { total };
   };
 
   const checkOut = () => {
     let costs = cart.map((item) => item.cost);
     const reducer = (accum, current) => accum + current;
     let newTotal = costs.reduce(reducer, 0);
-    console.log(`total updated to ${newTotal}`);
+    console.log("Checkout total:", newTotal);
     return newTotal;
   };
-  const restockProducts = (url) => {
-    doFetch(url);
-    let newItems = data.map((item) => {
-      let { name, country, cost, instock } = item;
-      return { name, country, cost, instock };
-    });
-    setItems([...items, ...newItems]);
+
+  const handleCheckout = () => {
+    let total = checkOut();
+    console.log("Handling checkout. Total:", total);
+    setTotal(total);
+    setCart([]);
   };
 
+  const restockProducts = async (url) => {
+    console.log("Restocking products from URL:", url);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("Fetched data:", data);
+      
+      let newItems = data.data.map((item) => {
+        let { attributes } = item;
+        return { 
+          name: attributes.name, 
+          country: attributes.country, 
+          cost: attributes.cost, 
+          instock: attributes.instock 
+        };
+      });
+
+      setItems(prevItems => prevItems.map(existingItem => {
+        const newItem = newItems.find(item => item.name === existingItem.name);
+        return newItem ? { ...existingItem, stock: existingItem.stock + newItem.instock } : existingItem;
+      }));
+
+      console.log("Items after restocking:", items);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  
   return (
-    <Container>
-      <Row>
+    <Container fluid className="vh-100 d-flex flex-column">
+      <Row className="bg-primary text-white py-3 mb-4">
         <Col>
-          <h1>Product List</h1>
-          <ul style={{ listStyleType: "none" }}>{list}</ul>
-        </Col>
-        <Col>
-          <h1>Cart Contents</h1>
-          <Accordion>{cartList}</Accordion>
-        </Col>
-        <Col>
-          <h1>CheckOut </h1>
-          <Button onClick={checkOut}>CheckOut $ {finalList().total}</Button>
-          <div> {finalList().total > 0 && finalList().final} </div>
+          <h1 className="text-center">React Shopping Cart</h1>
         </Col>
       </Row>
-      <Row>
-        <form
-          onSubmit={(event) => {
-            restockProducts(`http://localhost:1337/${query}`);
-            console.log(`Restock called on ${query}`);
-            event.preventDefault();
-          }}
-        >
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <button type="submit">ReStock Products</button>
-        </form>
+      <Row className="flex-grow-1 overflow-hidden">
+        <Col md={8} className="h-100 overflow-auto">
+          <h2 className="mb-4 text-primary">Product List</h2>
+          <Row>{list}</Row>
+        </Col>
+
+        <Col md={4} className="h-100 d-flex flex-column">
+          <h2 className="mb-4 text-primary">Cart Contents</h2>
+          <div className="flex-grow-1 overflow-auto">
+            <Accordion>{cartList}</Accordion>
+          </div>
+
+        </Col>
+      </Row>
+
+      <Row className="mt-4">
+        <Col className="d-flex justify-content-between">
+          <div className="col-md-5 "> 
+            <h2 className="text-primary">Restock Products</h2>
+            <Form
+              onSubmit={(event) => {
+                event.preventDefault();
+                restockProducts(query);
+              }}
+            >
+              <Form.Group>
+                <Form.Control
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Enter restock URL"
+                  className="mb-2"
+                />
+              </Form.Group>
+              <Button variant="primary" type="submit" className="w-100">Restock Products</Button>
+            </Form>
+          </div>
+
+          <div className="col-md-2 col-lg-4 "> 
+            <Card className="bg-light h-100">
+              <Card.Body className="d-flex flex-column justify-content-center">
+                <Card.Title className="text-success font-weight-bold mb-3">Total: ${finalList().total}</Card.Title>
+                <Button variant="success" onClick={handleCheckout}>Checkout</Button>
+              </Card.Body>
+            </Card>
+          </div>
+        </Col>
       </Row>
     </Container>
   );
 };
-// ========================================
+
 export default Products;
